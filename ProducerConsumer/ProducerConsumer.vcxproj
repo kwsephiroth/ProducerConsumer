@@ -118,6 +118,7 @@
   <ItemGroup>
     <ClInclude Include="Consumer.h" />
     <ClInclude Include="DataStructs.h" />
+    <ClInclude Include="ExecutionTimer.h" />
     <ClInclude Include="Producer.h" />
     <ClInclude Include="SharedDataQueue.h" />
   </ItemGroup>

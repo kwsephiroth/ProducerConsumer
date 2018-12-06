@@ -8,7 +8,7 @@
 #include "DataStructs.h"
 
 template <typename T>
-class SharedDataQueue
+class SharedDataQueue //: std::enable_shared_from_this<T>
 {
 private:
 	mutable std::mutex _mutex;

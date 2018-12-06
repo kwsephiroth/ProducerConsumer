@@ -7,6 +7,7 @@
 #include "DataStructs.h"
 #include "Producer.h"
 #include "Consumer.h"
+#include "ExecutionTimer.h"
 
 
 int main(int argc, char* argv[])
@@ -14,7 +15,7 @@ int main(int argc, char* argv[])
 	std::string filePath;
 	std::exception_ptr threadExceptionPtr = nullptr;
 
-	if (argc >= 2)
+	if (argc == 2)
 	{
 		filePath = argv[1];
 	}
@@ -26,6 +27,7 @@ int main(int argc, char* argv[])
 
 	//SharedDataQueue<std::shared_ptr<InputData>> dataQueue;
 	auto dataQueue = std::make_shared<SharedDataQueue<InputData>>();
+
 	std::cout << "Data queue reference count: " << dataQueue.use_count() << std::endl;
 	Producer producer{ dataQueue, threadExceptionPtr };
 	std::thread producerThread(&Producer::Produce, &producer, std::ref(filePath));

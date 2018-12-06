@@ -41,5 +41,8 @@
     <ClInclude Include="SharedDataQueue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ExecutionTimer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
