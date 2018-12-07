@@ -2,17 +2,15 @@
 
 
 
-std::vector<std::string> Producer::SeparateFields(const std::string& lineOfFields)
+void Producer::SeparateFields(const std::string& lineOfFields, std::vector<std::string>& fieldBuffer)
 {
 	std::string field;
-	std::vector<std::string> values;
 	std::istringstream ss(lineOfFields);
 
 	while (std::getline(ss, field, ','))
 	{
-		values.emplace_back(field);
+		fieldBuffer.emplace_back(field);
 	}
-	return values;
 }
 
 void Producer::Produce(const std::string& inputFilePath)
@@ -24,17 +22,18 @@ void Producer::Produce(const std::string& inputFilePath)
 	{
 		if (!inputFile.is_open())
 		{
-			AddTerminatingItem();
-			throw std::runtime_error("ERROR: Failed to open file at '" + inputFilePath + "'. Please check file path.");
+			std::call_once(this->terminatorFlag, [this] { AddTerminatingItem(); });
+			throw std::runtime_error("ERROR: Failed to open file at path '" + inputFilePath + "'. Please check file path.");
 		}
 
+		std::vector<std::string> fields;
 		while (std::getline(inputFile, lineOfFields))
 		{
-			auto fields = SeparateFields(lineOfFields);
+			SeparateFields(lineOfFields, fields);
 
 			if (fields.size() != 4)
 			{
-				AddTerminatingItem();
+				std::call_once(this->terminatorFlag, [this] { AddTerminatingItem(); });
 				throw std::runtime_error("ERROR: Input data is not in correct format. 4 fields per line expected. Please check data.");
 			}
 			else
@@ -46,7 +45,7 @@ void Producer::Produce(const std::string& inputFilePath)
 				int quantity = std::stoi(fields[3]);
 				if (quantity < 0)
 				{
-					AddTerminatingItem();
+					std::call_once(this->terminatorFlag, [this] { AddTerminatingItem(); });
 					throw std::runtime_error("ERROR: Input data is not in correct format. Cannot have negative quantity. Please check data.");
 				}
 				else
@@ -55,10 +54,11 @@ void Producer::Produce(const std::string& inputFilePath)
 					dataQueue->Push(inputData);
 				}
 			}
+			fields.clear();
 		} //End of file stream
 
 		//Add item to signify production is complete
-		AddTerminatingItem();
+		std::call_once(this->terminatorFlag, [this] { AddTerminatingItem(); });
 	}
 	catch (...)
 	{

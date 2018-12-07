@@ -2,7 +2,7 @@
 #include "DataStructs.h"
 #include "SharedDataQueue.h"
 #include <memory>
-//#include <mutex>
+#include <mutex>
 //#include <condition_variable>
 #include <vector>
 //#include <chrono>
@@ -16,23 +16,22 @@
 class Consumer
 {
 private:
-	/*static*/ std::mutex _mutex;
-	std::condition_variable outputFileAccessible;
-	//SharedDataQueue<std::shared_ptr<InputData>>& dataQueue;
+	std::mutex _mutex;
 	const std::shared_ptr<SharedDataQueue<InputData>> dataQueue;
-	/*static*/ std::vector <std::string> uniqueSymbols; //TO DO: Might want to make this an std::set or std::map for faster lookup
-	void WriteDataToFile(const InputData& inputData);
-	void SortOutputData(const std::string& fileName);
-	//void AddUniqueSymbol(const std::string& symbol);
-	bool SymbolExists(const std::string& symbol);
-	/*static void AddUniqueSymbol(std::string symbol)
-	{
-		//Must protect vector access with mutex
-		std::unique_lock<std::mutex> locker(_mutex);
-	}*/
+	std::unordered_map<std::string, uint32_t> uniqueSymbols;
+	void WriteDataToFile(bool symbolExists, const InputData& inputData);
+	void SortOutputData();
+	void SplitRowIntoValues(const std::string& dataRow, std::vector<std::string>& fieldBuffer);
+	bool UpdateUniqueSymbols(const std::string& symbol);
+	std::exception_ptr& exceptionPtr;
+
 public:
-	Consumer(const std::shared_ptr<SharedDataQueue<InputData>> p_dataQueue) : dataQueue(p_dataQueue) { std::cout << "Data queue reference count: " << dataQueue.use_count() << std::endl; }
+	Consumer(const std::shared_ptr<SharedDataQueue<InputData>> p_dataQueue, std::exception_ptr& p_exceptionPtr) : dataQueue(p_dataQueue), exceptionPtr(p_exceptionPtr)
+	{ 
+		//std::cout << "Data queue reference count: " << dataQueue.use_count() << std::endl; 
+	}
 	~Consumer() {}
 	void Consume();
+	void DisplayRowCounts();
 };
 
