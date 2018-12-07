@@ -7,7 +7,7 @@ struct InputData
 	std::string symbol;
 	double price;
 	unsigned int quantity;
-	bool isTerminatingItem; //Not sure if I'll commit to this mechanism
+	bool isTerminatingItem;
 
 	InputData() : isTerminatingItem() {}
 };

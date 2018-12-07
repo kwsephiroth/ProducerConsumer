@@ -113,7 +113,6 @@
     <ClCompile Include="Consumer.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Producer.cpp" />
-    <ClCompile Include="SharedDataQueue.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Consumer.h" />

@@ -1,7 +1,15 @@
 #include "Consumer.h"
 
+std::atomic<bool> Consumer::shouldConsume;
+std::once_flag Consumer::consumeFlag;
+std::once_flag Consumer::sortFlag;
+static std::mutex _symbolsMutex;
+static std::mutex _outfileMutex;
+static std::unordered_map<std::string, uint32_t> uniqueSymbols;
+
 void Consumer::WriteDataToFile(bool symbolExists, const InputData & inputData)
 {
+	static std::mutex _outfileMutex;
 	/*std::string symbol(inputData.symbol);
 	std::string upperCaseSymbol;
 	for (auto& ch : symbol)
@@ -10,8 +18,11 @@ void Consumer::WriteDataToFile(bool symbolExists, const InputData & inputData)
 	}
 	std::string fileName = upperCaseSymbol + ".csv";*/
 	
-	try
-	{
+	/*try
+	{*/
+		std::unique_lock<std::mutex> lock(_outfileMutex);
+		std::cout << "Thread [" << std::this_thread::get_id() << "] called Consumer::WriteDataToFile()." << std::endl;
+		//std::cout << "locked _outfileMutex" << std::endl;
 		std::string fileName = inputData.symbol + ".csv";
 		std::ofstream outputFile;
 
@@ -31,21 +42,27 @@ void Consumer::WriteDataToFile(bool symbolExists, const InputData & inputData)
 		}
 		else
 		{
-			outputFile << inputData.price << ",";
+			std::stringstream priceStr;
+			priceStr << std::showpoint << std::fixed << std::setprecision(2) << inputData.price;
+			outputFile << priceStr.str() << ",";
 			outputFile << inputData.quantity << ",";
 			outputFile << inputData.sequenceNumber << "\n";
 		}
-	}
+	/*}
 	catch (...)
 	{
 		exceptionPtr = std::current_exception();
-	}
+	}*/
 }
 
-void Consumer::SortOutputData()
+void Consumer::SortOutputFiles()
 {
-	try
-	{
+	/*try
+	{*/
+		std::cout << "Thread [" << std::this_thread::get_id() << "] called Consumer::SortOutputFiles()." << std::endl;
+		if (Consumer::shouldConsume.load() == true)
+			return;
+
 		std::ifstream inputFile;
 
 		for (auto itr = uniqueSymbols.begin(); itr != uniqueSymbols.end(); itr++)
@@ -102,7 +119,9 @@ void Consumer::SortOutputData()
 
 			for (size_t i = 0; i < temp.size(); i++)
 			{
-				outputFile << temp[i]->price << ",";
+				std::stringstream priceStr;
+				priceStr << std::showpoint << std::fixed << std::setprecision(2) << temp[i]->price;
+				outputFile << priceStr.str() << ",";
 				outputFile << temp[i]->quantity << ",";
 				outputFile << temp[i]->sequenceNumber << "\n";
 			}
@@ -110,11 +129,11 @@ void Consumer::SortOutputData()
 			temp.clear();
 			outputFile.close();
 		}
-	}
+	/*}
 	catch (...)
 	{
 		exceptionPtr = std::current_exception();
-	}
+	}*/
 }
 
 	void Consumer::SplitRowIntoValues(const std::string& dataRow, std::vector<std::string>& fieldBuffer)
@@ -137,6 +156,9 @@ void Consumer::SortOutputData()
 
 bool Consumer::UpdateUniqueSymbols(const std::string& symbol)
 {
+	std::unique_lock<std::mutex> lock(_symbolsMutex);
+	//std::cout << "Thread [" << std::this_thread::get_id() << "] called Consumer::UpdateUniqueSymbols()." << std::endl;
+	//std::cout << "locked _symbolsMutex" << std::endl;
 	auto itr = uniqueSymbols.find(symbol);
 	if (itr == uniqueSymbols.end())
 	{
@@ -152,6 +174,7 @@ bool Consumer::UpdateUniqueSymbols(const std::string& symbol)
 
 void Consumer::DisplayRowCounts()
 {
+	std::unique_lock<std::mutex> lock(_symbolsMutex);
 	uint32_t totalRows = 0;
 	for (auto itr = uniqueSymbols.begin(); itr != uniqueSymbols.end(); itr++)
 	{
@@ -163,19 +186,28 @@ void Consumer::DisplayRowCounts()
 
 void Consumer::Consume()
 {
-	while (true)
+	try
 	{
-		auto data = dataQueue->Pop(); //Assign copy of data
-
-		if (data.isTerminatingItem)
+		//std::cout << "Thread [" << std::this_thread::get_id() << "] called Consumer::Consume()" << std::endl;
+		while (Consumer::shouldConsume.load())
 		{
-			SortOutputData();
-			break;
-		}
-		//TODO: Synchronize this function call
-		auto symbolExists = UpdateUniqueSymbols(data.symbol);
+			auto data = dataQueue->Pop(); //Assign copy of data
 
-		//TODO: Synchronize this function call
-		WriteDataToFile(symbolExists, data);
+			if (data.isTerminatingItem)
+			{
+				Consumer::shouldConsume.store(false);
+				//std::call_once(Consumer::sortFlag, [this] { SortOutputFiles(); });
+				break;
+			}
+
+			auto symbolExists = UpdateUniqueSymbols(data.symbol);
+
+			WriteDataToFile(symbolExists, data);
+			//std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+	}
+	catch (...)
+	{
+		exceptionPtr = std::current_exception();
 	}
 }
